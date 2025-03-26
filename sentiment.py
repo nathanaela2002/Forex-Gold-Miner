@@ -14,7 +14,6 @@ from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 
-# For deep learning
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, confusion_matrix
@@ -33,18 +32,20 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-# Make sure NLTK data is downloaded (stopwords, punkt, wordnet)
+# Grab NLTK goodies (stopwords, punkt, wordnet)
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('wordnet')
 
 OANDA_ACCESS_TOKEN = os.getenv("OANDA_ACCESS_TOKEN")
 OANDA_ACCOUNT_ID = os.getenv("OANDA_ACCOUNT_ID")
+SQL_HOST = os.getenv("host")
+SQL_USER = os.getenv("user")
+SQL_PASSWORD = os.getenv("password")
+SQL_DATABASE = os.getenv("database")
 
-##############################################
-#               MYSQL ARTICLES
-##############################################
 
+# Grab articles from MySQL
 def get_mysql_articles():
     """
     Connect to MySQL and fetch articles with their published date.
@@ -53,10 +54,10 @@ def get_mysql_articles():
       - published_date (VARCHAR) in the format 'Published 03/20/2025, 01:05 PM'
     """
     conn = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="126125Al1245!",
-        database="scraped_data"
+        host=SQL_HOST,
+        user=SQL_USER,
+        password=SQL_PASSWORD,
+        database=SQL_DATABASE
     )
     cursor = conn.cursor()
 
@@ -81,14 +82,11 @@ def parse_published_date(date_str):
     if not match:
         return None
 
-    date_part = match.group(1)  # e.g. "03/20/2025, 01:05 PM"
+    date_part = match.group(1)  
     pub_dt = dt.datetime.strptime(date_part, "%m/%d/%Y, %I:%M %p")
     return pub_dt
 
-##############################################
-#       FETCH GOLD DATA FROM OANDA
-##############################################
-
+# FETCH GOLD DATA FROM OANDA
 def fetch_gold_candles():
     """
     Fetch XAU/USD candlestick data from OANDA for the past 3 months (1-hour granularity),
@@ -96,7 +94,7 @@ def fetch_gold_candles():
     Returns a DataFrame with columns: [Date, Open, High, Low, Close, Volume], indexed by Date.
     """
     end_time = dt.datetime.now(dt.timezone.utc)
-    start_time = end_time - dt.timedelta(days=90)  # 3 months
+    start_time = end_time - dt.timedelta(days=90)  
     chunk_delta = dt.timedelta(days=30)
     data_frames = []
     current_start = start_time
@@ -114,7 +112,7 @@ def fetch_gold_candles():
         params = {
             "from": from_str,
             "to": to_str,
-            "granularity": "H1",  # 1-hour candles
+            "granularity": "H1",  
             "price": "M"
         }
         request = InstrumentsCandles(instrument="XAU_USD", params=params)
@@ -128,8 +126,7 @@ def fetch_gold_candles():
         candles = response.get("candles", [])
         rows = []
         for c in candles:
-            # e.g. time: "2025-03-20T13:00:00.000000000Z"
-            time_str = c["time"].rstrip("Z")[:26]  # trim extra decimals
+            time_str = c["time"].rstrip("Z")[:26]  
             dt_obj = pd.to_datetime(time_str)
             mid = c["mid"]
             row = {
@@ -147,7 +144,7 @@ def fetch_gold_candles():
             data_frames.append(df_chunk)
 
         current_start = current_end
-        time.sleep(1)  # avoid rate-limit
+        time.sleep(1)  # Chill for a sec to dodge rate limits
 
     if data_frames:
         df = pd.concat(data_frames, ignore_index=True)
@@ -157,10 +154,7 @@ def fetch_gold_candles():
     else:
         return pd.DataFrame()
 
-##############################################
-#      MARKET SENTIMENT BASED ON PRICE
-##############################################
-
+# MARKET SENTIMENT BASED ON PRICE
 def compute_market_sentiment(gold_df, publish_dt, hours=5):
     """
     Determine how gold price moved in the 'hours' after 'publish_dt'.
@@ -179,10 +173,10 @@ def compute_market_sentiment(gold_df, publish_dt, hours=5):
             "market_sentiment": "Neutral"
         }
     
-    # 1. Find the index of the candle on or immediately after publish_dt
+    # Find candle index at or just after publish_dt
     idx_before = gold_df.index.searchsorted(publish_dt, side="left")
     if idx_before >= len(gold_df):
-        # No candle found after this time => can't compute
+        # Bummer, no candle after that time; bail out
         return {
             "price_before": None,
             "price_after_5h": None,
@@ -190,15 +184,15 @@ def compute_market_sentiment(gold_df, publish_dt, hours=5):
             "market_sentiment": "Neutral"
         }
     
-    # Price at the "before" candle
+    # Grab price from that candle
     dt_before = gold_df.index[idx_before]
     price_before = gold_df.loc[dt_before, "Close"]
 
-    # 2. Find the candle on or immediately after publish_dt + hours
+    # Now get the candle after publish_dt + hours
     future_time = publish_dt + dt.timedelta(hours=hours)
     idx_after = gold_df.index.searchsorted(future_time, side="left")
     if idx_after >= len(gold_df):
-        # No candle found after future_time => can't compute
+        # Can't find a candle after the future time, so we skip
         return {
             "price_before": float(price_before),
             "price_after_5h": None,
@@ -211,7 +205,7 @@ def compute_market_sentiment(gold_df, publish_dt, hours=5):
 
     price_change = price_after - price_before
     
-    # Classify
+    # Decide if it's up, down, or chill
     if price_change > 0:
         market_sentiment = "Positive"
     elif price_change < 0:
@@ -226,10 +220,7 @@ def compute_market_sentiment(gold_df, publish_dt, hours=5):
         "market_sentiment": market_sentiment
     }
 
-##############################################
-#       STORE MARKET SENTIMENT IN SQL
-##############################################
-
+# STORE MARKET SENTIMENT IN SQL
 def store_market_sentiment_in_sql(sentiment_data):
     """
     Create/Update a table 'sentiment' with columns:
@@ -239,7 +230,7 @@ def store_market_sentiment_in_sql(sentiment_data):
       - price_after_5h (FLOAT)
       - price_change (FLOAT)
       - market_sentiment (VARCHAR(50))
-      - ml_sentiment (VARCHAR(50)) # We'll add an ML-based sentiment column
+      - ml_sentiment (VARCHAR(50)) # Plus an ML-based sentiment column
     """
     conn = mysql.connector.connect(
         host="localhost",
@@ -297,13 +288,11 @@ def store_market_sentiment_in_sql(sentiment_data):
     cursor.close()
     conn.close()
 
-##############################################
-#         NLP & DEEP LEARNING STEPS
-##############################################
-
+# Set up stop word and lemmatizer
 stop_words = set(stopwords.words('english'))
 lemmatizer = WordNetLemmatizer()
 
+# Clear out noise from text
 def pre_process(text):
     """
     Clean and standardize text, similar to the approach used in the AAPL project:
@@ -315,17 +304,17 @@ def pre_process(text):
     if not isinstance(text, str):
         return ""
     text = text.lower()
-    # Remove URLs
+    # Strip out URLs
     text = re.sub(r'https?://\S+|www\.\S+', ' ', text)
-    # Remove HTML tags
+    # Kick out HTML tags
     text = re.sub(r'<.*?>', ' ', text)
-    # Remove non-alpha
+    # Only letters allowed
     text = re.sub(r'[^a-z\s]', ' ', text)
-    # Tokenize
+    # Break into words
     tokens = word_tokenize(text)
-    # Remove stopwords and short tokens
+    # Ditch common words and tiny tokens
     tokens = [t for t in tokens if t not in stop_words and len(t) > 2]
-    # Lemmatize
+    # Normalize words
     tokens = [lemmatizer.lemmatize(t) for t in tokens]
     return " ".join(tokens)
 
@@ -334,15 +323,14 @@ def train_lstm_model(df_articles):
     Train an LSTM sentiment model using (article_text -> market_sentiment) as labels.
     Returns the trained model, tokenizer, label_encoder.
     """
-    # 1. Clean text
+    # Tidy up text
     df_articles["clean_text"] = df_articles["content"].apply(pre_process)
 
-    # 2. Market sentiment from price movement is used as label
-    #    Convert "Positive", "Negative", "Neutral" to numeric
+    # Convert sentiment words to numbers
     label_encoder = LabelEncoder()
     df_articles["label_id"] = label_encoder.fit_transform(df_articles["market_sentiment"])
 
-    # 3. Split data
+    # Divide the data for training and testing
     X_train, X_test, y_train, y_test = train_test_split(
         df_articles["clean_text"],
         df_articles["label_id"],
@@ -351,19 +339,19 @@ def train_lstm_model(df_articles):
         stratify=df_articles["label_id"]
     )
 
-    # 4. Tokenizer + Sequencing
+    # Turn text into sequences 
     tokenizer = Tokenizer(num_words=5000)
     tokenizer.fit_on_texts(X_train)
 
     X_train_seq = tokenizer.texts_to_sequences(X_train)
     X_test_seq = tokenizer.texts_to_sequences(X_test)
 
-    # 5. Pad sequences
+    # Make all sequences same length
     max_len = 100
     X_train_pad = pad_sequences(X_train_seq, maxlen=max_len)
     X_test_pad = pad_sequences(X_test_seq, maxlen=max_len)
 
-    # 6. Build LSTM model
+    # Build LSTM model
     model = Sequential()
     model.add(Embedding(input_dim=5000, output_dim=128, input_length=max_len))
     model.add(LSTM(128, dropout=0.2, recurrent_dropout=0.2))
@@ -372,22 +360,22 @@ def train_lstm_model(df_articles):
                   optimizer=Adam(learning_rate=0.001),
                   metrics=['accuracy'])
 
-    # 7. Train
+    # Train for 5 rounds
     history = model.fit(
         X_train_pad, y_train,
         validation_data=(X_test_pad, y_test),
-        epochs=5,  # can adjust
+        epochs=5,  
         batch_size=64,
         verbose=1
     )
 
-    # 8. Evaluate
+    # Show test loss and accuracy
     print("\n=== ML Model Evaluation ===")
     loss, acc = model.evaluate(X_test_pad, y_test, verbose=0)
     print(f"Test Loss: {loss:.4f}")
     print(f"Test Accuracy: {acc:.4f}")
 
-    # Detailed metrics
+    # Report on predictions
     y_pred_probs = model.predict(X_test_pad)
     y_pred = np.argmax(y_pred_probs, axis=1)
 
@@ -410,29 +398,25 @@ def ml_sentiment_prediction(model, tokenizer, label_encoder, text):
     label_id = np.argmax(pred, axis=1)[0]
     return label_encoder.classes_[label_id]
 
-##############################################
-#               MAIN LOGIC
-##############################################
 
 def main():
-    # 1. Fetch articles
+    # Get articles from MySQL DB
     articles_df = get_mysql_articles()
 
-    # 2. Fetch gold data (3 months, 1 hour)
+    # Pull gold price data (3 months, hourly)
     gold_df = fetch_gold_candles()
     if gold_df.empty:
         print("No gold data fetched from OANDA.")
         return
 
-    # 3. For each article, compute market sentiment based on 5-hour price movement
+    # Check gold's 5-hour move from each article publish date
     results = []
     for idx, row in articles_df.iterrows():
         pub_date_str = row["published_date"]
         pub_date = parse_published_date(pub_date_str)
         
         if not pub_date:
-            # skip if we can't parse date
-            # still store a "Neutral" market_sentiment to avoid missing data
+            # Date parse failed; mark sentiment as Neutral and keep text
             results.append({
                 "article_index": idx,
                 "published_date": None,
@@ -440,7 +424,7 @@ def main():
                 "price_after_5h": None,
                 "price_change": None,
                 "market_sentiment": "Neutral",
-                "content": row["content"]  # keep original text for ML
+                "content": row["content"] 
             })
             continue
 
@@ -455,22 +439,20 @@ def main():
             "content": row["content"]
         })
 
-    # Convert to DataFrame for ML training
+    # Create a DataFrame from our results for ML
     sentiment_df = pd.DataFrame(results)
     print("\n==== MARKET SENTIMENT BASED ON GOLD PRICE ====\n")
-    print(sentiment_df.head(10))  # preview only
+    print(sentiment_df.head(10))  
 
-    # 4. Train LSTM model on existing data (article text -> price-based sentiment)
-    #    Filter out rows without a valid content or market_sentiment
+    # Train LSTM model if we got enough sentiment types, otherwise skip
     valid_data = sentiment_df.dropna(subset=["content", "market_sentiment"])
     if len(valid_data["market_sentiment"].unique()) < 2:
-        print("Not enough variety in market sentiment labels for ML training. Exiting ML portion.")
-        # Even if we can’t train, we’ll just store the table without ML columns
-        # Store data in SQL
+        print("Not enough sentiment diversity for ML training. Skipping ML part.")
+        # Not enough diversity; set ML sentiment to N/A
         sentiment_df["ml_sentiment"] = "N/A"
         store_market_sentiment_in_sql(sentiment_df.to_dict(orient="records"))
-        # Plot candlestick
-        print("\nPlotting the last 3 months of XAU/USD candlesticks...")
+        # Draw a candlestick chart for gold prices
+        print("\nPlotting last 3 months of XAU/USD candlesticks...")
         mpf.plot(
             gold_df,
             type='candle',
@@ -484,7 +466,7 @@ def main():
     print("\nTraining LSTM Model on articles (text -> market_sentiment)...")
     model, tokenizer, label_encoder = train_lstm_model(valid_data)
 
-    # 5. Use trained model to predict ML-based sentiment for each article
+    # Use our model to guess the sentiment for each article
     ml_sentiments = []
     for i, row in sentiment_df.iterrows():
         predicted_label = ml_sentiment_prediction(
@@ -494,11 +476,11 @@ def main():
 
     sentiment_df["ml_sentiment"] = ml_sentiments
 
-    # 6. Store the combined data into SQL table 'sentiment'
+    # Store the sentiment results in the SQL table
     store_market_sentiment_in_sql(sentiment_df.to_dict(orient="records"))
 
-    # 7. Plot candlesticks (optional)
-    print("\nPlotting the last 3 months of XAU/USD candlesticks...")
+    # Draw a 3-month candlestick chart for XAU/USD
+    print("\nPlotting last 3 months of XAU/USD candlesticks...")
     mpf.plot(
         gold_df,
         type='candle',
