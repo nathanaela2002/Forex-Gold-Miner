@@ -124,9 +124,3 @@ This script can be run on a server or local machine for real-time, **automated**
      - learning rate, weight decay, hidden units, architecture type, etc.
   8. Save the **best model** to `best_model_final.h5`.
   9. Includes a basic **simulation** function to test risk/reward-based trading over historical data.
-
----
-
-## Files & Directory Structure
-Below is an example layout of the files:
-
