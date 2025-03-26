@@ -21,7 +21,7 @@ Welcome to the **FOREX-GOLD-MINING** repository. This project combines **web scr
 
 ## Project Overview
 This system is designed to:
-1. **Scrape gold-related news articles** (from Investing.com, for example) via **undetected Selenium Chrome**.
+1. **Scrape gold-related news articles** (from Investing.com) via **undetected Selenium Chrome**.
 2. **Store and process** the articles in a MySQL database.
 3. **Compute textual sentiment** (using NLP techniques) from the scraped articles.
 4. **Combine** fundamental data (like PMI values from MySQL), **technical indicators** (RSI, Bollinger Bands, MACD, etc.), and **price-based sentiment** to create a **training dataset**.
@@ -43,7 +43,7 @@ This system is designed to:
 ---
 
 ## Technical Stack
-1. **Python** 3.x
+1. **Python** 
 2. **Selenium** with [`undetected_chromedriver`](https://github.com/ultrafunkamsterdam/undetected-chromedriver)
 3. **MySQL** for data storage
 4. [**OandaPyV20**](https://github.com/hootnot/oanda-api-v20) for OANDA RESTful API calls
@@ -124,8 +124,6 @@ This script can be run on a server or local machine for real-time, **automated**
      - learning rate, weight decay, hidden units, architecture type, etc.
   8. Save the **best model** to `best_model_final.h5`.
   9. Includes a basic **simulation** function to test risk/reward-based trading over historical data.
-
-This code is **modular**, letting you switch between MLP or LSTM quickly for experimentation. The **LSTM** approach specifically uses a time-series sample creation method (`create_timeseries_samples`) to pass sequential data to the neural network.
 
 ---
 
