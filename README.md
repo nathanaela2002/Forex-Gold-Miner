@@ -66,7 +66,6 @@ This system is designed to:
 ---
 
 ## Selenium Web Scraper for News Articles
-- **File**: `login_and_scrape_investing.py` (the snippet shown at the beginning).
 - Uses **undetected_chromedriver** to bypass typical bot detection.
 - Steps:
   1. **Load** environment variables (like Investing.com credentials).
@@ -79,7 +78,7 @@ This flow ensures an **automated pipeline** that updates regularly, providing fr
 ---
 
 ## NLP Market Sentiment Modeling
-- **File**: `nlp_sentiment_market.py` (the large script that merges with gold data).
+- **File**: `nlp_sentiment_market.py`
 - The main steps:
   1. **Fetch** the scraped articles from MySQL.
   2. **Pull** corresponding gold price data (1-hour candles) from OANDA.
@@ -95,7 +94,6 @@ This creates a **text-based sentiment classification** system that can either st
 ---
 
 ## Quantitative Trading on OANDA
-- **File**: `real_time_trading_loop.py` (or similarly named).
 - Main flow:
   1. Periodically **fetch** the latest 30-minute candles.
   2. **Compute** indicators on these candles (RSI, Bollinger Bands, MACD, etc.).
@@ -106,13 +104,9 @@ This creates a **text-based sentiment classification** system that can either st
      - Verify a **risk/reward** ratio.
      - **Place** an OANDA market order with **Stop Loss** & **Take Profit**.
   6. **Sleep** for a configured interval and repeat.
-
-This script can be run on a server or local machine for real-time, **automated** trading once your pipeline is stable.
-
 ---
 
 ## RNN/LSTM Model for Price Prediction
-- **File**: `model_training_evolution.py` (an example name reflecting the evolutionary training logic shown).
 - Steps:
   1. **Fetch 6 months** of 30-minute candle data from OANDA.
   2. **Compute** advanced indicators (RSI, Bollinger, MACD, Stochastics, ATR, candlestick patterns).
