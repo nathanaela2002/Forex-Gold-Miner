@@ -78,7 +78,6 @@ This flow ensures an **automated pipeline** that updates regularly, providing fr
 ---
 
 ## NLP Market Sentiment Modeling
-- **File**: `nlp_sentiment_market.py`
 - The main steps:
   1. **Fetch** the scraped articles from MySQL.
   2. **Pull** corresponding gold price data (1-hour candles) from OANDA.
