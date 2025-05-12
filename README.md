@@ -1,22 +1,6 @@
 # FOREX-GOLD-MINING
 
 Welcome to the **FOREX-GOLD-MINING** repository. This project combines **web scraping**, **natural language processing (NLP)** sentiment analysis, and a **quantitative trading algorithm** (featuring **RNN/LSTM** models) to trade Gold (XAU/USD) using the **OANDA** API and **MySQL** for data storage.
-
----
-
-## Table of Contents
-1. [Project Overview](#project-overview)
-2. [Key Features](#key-features)
-3. [Technical Stack](#technical-stack)
-4. [Data Flow Summary](#data-flow-summary)
-5. [Selenium Web Scraper for News Articles](#selenium-web-scraper-for-news-articles)
-6. [NLP Market Sentiment Modeling](#nlp-market-sentiment-modeling)
-7. [Quantitative Trading on OANDA](#quantitative-trading-on-oanda)
-8. [RNN/LSTM Model for Price Prediction](#rnnlstm-model-for-price-prediction)
-9. [Files & Directory Structure](#files--directory-structure)
-10. [Setting Up & Running](#setting-up--running)
-11. [License](#license)
-
 ---
 
 ## Project Overview
